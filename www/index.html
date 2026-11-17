@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sobrevivente: Dia R</title>
+<style>
+:root{--bg:#f3f1ea;--card:#fff;--tx:#1d1d1b;--mut:#6b6a63;--bd:#d9d6ca;--ac:#2f6b3a;--bad:#b3392b;--btn:#e8e5d8;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16170f;--card:#20221a;--tx:#ecebdf;--mut:#9a9887;--bd:#3a3c2f;--ac:#7fc08a;--bad:#e5786a;--btn:#2c2e23;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#16170f;--card:#20221a;--tx:#ecebdf;--mut:#9a9887;--bd:#3a3c2f;--ac:#7fc08a;--bad:#e5786a;--btn:#2c2e23;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;padding:14px;max-width:520px;margin:0 auto}
+h1{font-size:20px;margin:4px 0 10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:10px}
+.bar{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:14px}
+.bar span:first-child{width:62px;color:var(--mut)}
+.t{flex:1;height:10px;background:var(--btn);border-radius:6px;overflow:hidden}
+.t i{display:block;height:100%;background:var(--ac);transition:width .3s}
+.t i.low{background:var(--bad)}
+.inv{display:flex;justify-content:space-between;font-size:14px;color:var(--mut);margin-top:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{font:inherit;color:var(--tx);background:var(--btn);border:1px solid var(--bd);border-radius:10px;padding:12px 8px;cursor:pointer}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.4}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin:0 0 8px}
+#log{max-height:200px;overflow-y:auto;font-size:15px}
+#log p{margin:0 0 6px;padding-bottom:6px;border-bottom:1px solid var(--bd)}
+#log p:first-child{font-weight:600}
+.over{text-align:center}
+.over button{background:var(--ac);color:#fff;margin-top:8px;width:100%}
+</style>
+</head>
+<body>
+<h1>☢ Sobrevivente: Dia R</h1>
+<div class="card">
+<div class="bar"><span>❤ Vida</span><div class="t"><i id="b-hp"></i></div></div>
+<div class="bar"><span>🍖 Fome</span><div class="t"><i id="b-food"></i></div></div>
+<div class="bar"><span>💧 Sede</span><div class="t"><i id="b-water"></i></div></div>
+<div class="bar"><span>⚡ Energia</span><div class="t"><i id="b-en"></i></div></div>
+<div class="inv"><span id="day"></span><span id="inv"></span></div>
+</div>
+<div class="card" id="actions">
+<h2>Explorar</h2>
+<div class="grid">
+<button onclick="explore('floresta')">🌲 Floresta</button>
+<button onclick="explore('cidade')">🏚 Cidade em ruínas</button>
+<button onclick="explore('rio')">🌊 Rio</button>
+<button onclick="explore('bunker')">🔒 Bunker</button>
+</div>
+<h2 style="margin-top:12px">Ações</h2>
+<div class="grid">
+<button onclick="use('comida')">Comer</button>
+<button onclick="use('agua')">Beber</button>
+<button onclick="use('remedio')">Usar remédio</button>
+<button onclick="rest()">😴 Descansar</button>
+<button id="bld" style="grid-column:span 2" onclick="build()">🛠 Melhorar abrigo (3 sucata)</button>
+</div>
+</div>
+<div class="card" id="over" style="display:none"></div>
+<div class="card"><h2>Diário</h2><div id="log"></div></div>
+<script>
+let S;
+const R=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const cl=v=>Math.max(0,Math.min(100,v));
+function init(){S={day:1,turn:0,hp:100,food:80,water:80,en:100,shelter:0,inv:{comida:1,agua:1,remedio:0,sucata:0},log:[],dead:false};
+say("Você acorda num mundo devastado. Encontre recursos e sobreviva o máximo de dias possível.");render()}
+function say(t){S.log.unshift(t);if(S.log.length>30)S.log.pop()}
+function tick(f,w,e){
+S.food=cl(S.food-f);S.water=cl(S.water-w);S.en=cl(S.en-e);
+if(S.food<=0){S.hp-=10;say("Você está faminto e enfraquecendo (-10 vida).")}
+if(S.water<=0){S.hp-=12;say("Desidratação severa (-12 vida).")}
+S.turn++;
+if(S.turn%3===0){S.day++;say("☀ Amanheceu. Dia "+S.day+".");
+if(S.day>2&&Math.random()<.35){const d=Math.max(0,R(8,18)-S.shelter*5);if(d){S.hp-=d;say("Uma tempestade radioativa atingiu seu abrigo (-"+d+" vida).")}else say("Seu abrigo resistiu à tempestade radioativa.")}}
+S.hp=cl(S.hp);if(S.hp<=0)S.dead=true;render()}
+function add(k,n){S.inv[k]+=n}
+function explore(p){
+if(S.dead)return;
+if(S.en<15){say("Você está exausto demais. Descanse primeiro.");render();return}
+const r=Math.random();let m="";
+if(p==="floresta"){
+if(r<.55){const n=R(1,2);add("comida",n);m="Você caçou e colheu frutos: +"+n+" comida."}
+else if(r<.75){add("agua",1);m="Achou uma poça limpa: +1 água."}
+else if(r<.9){S.hp-=R(8,15);m="Um lobo atacou você! Perdeu vida."}
+else m="A floresta está silenciosa. Nada encontrado."}
+if(p==="cidade"){
+if(r<.5){const n=R(1,3);add("sucata",n);m="Vasculhou os escombros: +"+n+" sucata."}
+else if(r<.65){add("remedio",1);m="Achou um kit médico: +1 remédio."}
+else if(r<.8){add("comida",1);m="Uma lata esquecida: +1 comida."}
+else if(r<.95){S.hp-=R(12,22);m="Saqueadores emboscaram você! Perdeu vida."}
+else m="Só poeira e silêncio."}
+if(p==="rio"){
+if(r<.75){const n=R(1,3);add("agua",n);m="Coletou água do rio: +"+n+" água."}
+else if(r<.9){add("comida",1);m="Pescou um peixe: +1 comida."}
+else{S.hp-=R(6,12);m="A água estava contaminada! Perdeu vida."}}
+if(p==="bunker"){
+if(r<.4){add("remedio",2);add("comida",2);m="Suprimentos militares! +2 remédio, +2 comida."}
+else if(r<.6){add("sucata",4);m="Equipamentos úteis: +4 sucata."}
+else if(r<.85){S.hp-=R(20,32);m="Uma armadilha disparou! Dano pesado."}
+else m="O bunker está vazio e trancado."}
+say(m);tick(8,10,12)}
+function use(k){
+if(S.dead)return;
+if(S.inv[k]<1){say("Você não tem isso.");render();return}
+S.inv[k]--;
+if(k==="comida"){S.food=cl(S.food+35);say("Você comeu. Fome -35%.")}
+if(k==="agua"){S.water=cl(S.water+35);say("Você bebeu água.")}
+if(k==="remedio"){S.hp=cl(S.hp+35);say("Usou remédio: +35 vida.")}
+render()}
+function rest(){
+if(S.dead)return;
+S.en=cl(S.en+40+S.shelter*10);S.hp=cl(S.hp+S.shelter*5);
+say("Você descansou"+(S.shelter?" no abrigo (nível "+S.shelter+")":" ao relento")+".");
+tick(6,8,0)}
+function build(){
+if(S.dead)return;
+if(S.inv.sucata<3){say("Precisa de 3 sucata.");render();return}
+if(S.shelter>=3){say("Seu abrigo já está no máximo.");render();return}
+S.inv.sucata-=3;S.shelter++;say("Abrigo melhorado para o nível "+S.shelter+".");tick(4,4,8)}
+function bar(id,v){const e=document.getElementById(id);e.style.width=v+"%";e.className=v<25?"low":""}
+function render(){
+bar("b-hp",S.hp);bar("b-food",S.food);bar("b-water",S.water);bar("b-en",S.en);
+document.getElementById("day").textContent="Dia "+S.day+" · Abrigo "+S.shelter+"/3";
+const i=S.inv;document.getElementById("inv").textContent="🍖"+i.comida+" 💧"+i.agua+" 💊"+i.remedio+" 🔩"+i.sucata;
+document.getElementById("log").innerHTML=S.log.map(t=>"<p>"+t+"</p>").join("");
+const o=document.getElementById("over");
+document.querySelectorAll("#actions button").forEach(b=>b.disabled=S.dead);
+if(S.dead){o.style.display="block";o.className="card over";o.innerHTML="<h2>Fim de jogo</h2><p>Você sobreviveu <b>"+S.day+"</b> dia"+(S.day>1?"s":"")+".</p><button onclick=\"init()\">Jogar de novo</button>"}
+else o.style.display="none"}
+init();
+</script>
+</body>
+</html>
